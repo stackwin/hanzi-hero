@@ -1,0 +1,7 @@
+# 开发与测试依赖（游戏本身运行不需要任何依赖，双击 index.html 即可玩）
+
+# 自动化测试：Playwright 驱动 Edge/Chrome 跑端到端回归
+playwright>=1.40
+
+# 配音生成：调用微软云 edge-tts 合成真人级女声（仅 gen_audio.py 需要）
+edge-tts>=6.1.9

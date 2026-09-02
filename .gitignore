@@ -1,0 +1,17 @@
+# 测试产物
+tests/shots/
+.pytest_cache/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 注意：audio/ 是核心资源（848 条预生成配音），不要忽略

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no">
+<title>小熊识字乐园 · 5岁宝宝认字游戏</title>
+<!-- PWA -->
+<meta name="theme-color" content="#4D96FF">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="识字乐园">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="sun"></div>
+<div class="cloud c1"></div>
+<div class="cloud c2"></div>
+
+<header class="topbar">
+  <button class="btn-home" id="btnHome" title="回到首页">🏠 首页</button>
+  <div class="logo">🐻 <span id="logoName">小熊识字乐园</span></div>
+  <div class="right">
+    <div class="starbox" title="我的星星">⭐ <b id="starCount">0</b></div>
+    <button class="btn-parent" id="btnParent" title="家长看看">👨‍👩‍👦 家长</button>
+  </div>
+</header>
+
+<main id="app">
+  <!-- 首页：选关 -->
+  <section class="screen" id="screenHome">
+    <h1 class="big-title" id="homeTitle">选一个小关卡吧！</h1>
+    <div class="level-grid" id="levelGrid"></div>
+    <p class="tip">💛 建议按顺序玩，每关玩完会解锁下一关哦</p>
+  </section>
+
+  <!-- 关卡页：模式选择 + 字表 -->
+  <section class="screen hidden" id="screenLevel">
+    <div class="level-head">
+      <h1 class="big-title" id="levelTitle"></h1>
+      <button class="btn-ghost" id="btnBackHome">← 换一关</button>
+    </div>
+    <div class="char-strip" id="charStrip"></div>
+    <h2 class="mid-title">选一个玩法</h2>
+    <div class="mode-grid">
+      <button class="mode-card learn" data-mode="learn">
+        <span class="mode-emoji">📖</span>
+        <span class="mode-name">学一学</span>
+        <span class="mode-desc">看大卡片，听读音</span>
+      </button>
+      <button class="mode-card listen" data-mode="listen">
+        <span class="mode-emoji">👂</span>
+        <span class="mode-name">听音选字</span>
+        <span class="mode-desc">听到什么，点什么</span>
+      </button>
+      <button class="mode-card find" data-mode="find">
+        <span class="mode-emoji">🎯</span>
+        <span class="mode-name">找字游戏</span>
+        <span class="mode-desc">把藏起来的字找出来</span>
+      </button>
+      <button class="mode-card match" data-mode="match">
+        <span class="mode-emoji">🧩</span>
+        <span class="mode-name">配对游戏</span>
+        <span class="mode-desc">字和图片手拉手</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- 游戏页 -->
+  <section class="screen hidden" id="screenGame">
+    <div class="game-head">
+      <button class="btn-ghost" id="btnQuit">← 退出</button>
+      <div class="progress-wrap">
+        <div class="progress-bar"><div class="progress-fill" id="progFill"></div></div>
+        <span class="progress-text" id="progText"></span>
+      </div>
+      <div class="game-star">⭐ <b id="sessionStar">0</b></div>
+    </div>
+    <div class="game-body" id="gameBody"></div>
+  </section>
+
+  <!-- 结算页 -->
+  <section class="screen hidden" id="screenResult">
+    <div class="result-card">
+      <div class="result-emoji" id="resultEmoji">🎉</div>
+      <h1 class="big-title" id="resultTitle">太棒啦！</h1>
+      <p class="result-sub" id="resultSub"></p>
+      <div class="result-stars" id="resultStars"></div>
+      <div class="result-chars" id="resultChars"></div>
+      <div class="result-btns">
+        <button class="btn big" id="btnAgain">🔁 再玩一次</button>
+        <button class="btn big ghost" id="btnBackLevel">📚 换玩法</button>
+        <button class="btn big ghost" id="btnResultHome">🏠 回首页</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 家长面板 -->
+  <section class="screen hidden" id="screenParent">
+    <h1 class="big-title">👨‍👩‍👦 家长面板</h1>
+    <div class="stat-row" id="statRow"></div>
+    <div class="parent-box">
+      <h2 class="mid-title">每个字宝宝的认识次数</h2>
+      <div class="mastery-grid" id="masteryGrid"></div>
+      <p class="tip" id="masteryTip"></p>
+    </div>
+    <div class="parent-box">
+      <h2 class="mid-title">🔥 容易错的字（出现频率会被加强）</h2>
+      <p class="tip">孩子反复认错的字，游戏中会优先出现、复习更密集。答对会让错次数自然下降。红色 = 错得多。</p>
+      <div class="weak-grid" id="weakGrid"></div>
+      <p class="tip" id="weakTip"></p>
+    </div>
+    <div class="parent-box">
+      <h2 class="mid-title">👶 孩子的名字</h2>
+      <div class="name-row">
+        <input type="text" id="inName" maxlength="10" placeholder="比如：远宝">
+        <button class="btn small" id="btnSaveName">保存</button>
+      </div>
+      <p class="tip">孩子的名字会显示在首页和结算页，让他/她更有归属感。留空就不显示。</p>
+    </div>
+    <div class="parent-box">
+      <h2 class="mid-title">✏️ 加自己的字</h2>
+      <p class="tip">把幼儿园/老师发的字加进来，会变成首页的「我自己的字」这一关。一行一个字，格式：<b>字 拼音 词语</b>（拼音可省略，会自动查；至少要给 1 个字）</p>
+      <textarea id="inCustom" rows="6" placeholder="猫 māo 小猫 猫咪&#10;狗 gǒu 小狗 狗狗&#10;兔"></textarea>
+      <div class="name-row">
+        <button class="btn small" id="btnSaveCustom">保存字表</button>
+        <button class="btn small ghost" id="btnClearCustom">清空自定义</button>
+      </div>
+      <p class="tip" id="customStatus"></p>
+      <p class="tip">💡 加的生僻字想听真人声音？保存字表后，<b>双击游戏目录里的「更新声音.bat」</b>，把字粘进去回车，1-2 分钟搞定（需要联网）。</p>
+    </div>
+    <div class="parent-box">
+      <h2 class="mid-title">🎙️ 朗读声音</h2>
+      <p class="tip">前两个是<b>真人级云声音</b>（已经存进游戏文件夹，断网也能听）。点卡片切换，点「🔊」试听。</p>
+      <div class="voice-cards" id="voiceCards"></div>
+      <p class="tip" id="voiceStatus">当前声音：检测中…</p>
+      <details class="adv-box">
+        <summary>系统语音（云音频里没覆盖到的字才会用到）</summary>
+        <div class="voice-row">
+          <select id="selVoice"></select>
+          <button class="btn small" id="btnTryVoice">🔊 试听</button>
+        </div>
+        <p class="tip" id="sysVoiceTip"></p>
+      </details>
+    </div>
+    <div class="parent-box">
+      <h2 class="mid-title">设置</h2>
+      <div class="setting-row">
+        <label class="switch">
+          <input type="checkbox" id="chkUnlock">
+          <span>解锁全部关卡（不按顺序也能玩）</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox" id="chkSound" checked>
+          <span>开启朗读和音效（需要有声音的电脑）</span>
+        </label>
+        <button class="btn danger small" id="btnReset">清空学习记录</button>
+      </div>
+      <p class="tip">游戏记录保存在这台电脑的浏览器里，不会上传到任何地方。</p>
+    </div>
+    <div class="center"><button class="btn big" id="btnParentBack">🏠 回首页</button></div>
+  </section>
+</main>
+
+<div class="fx-layer" id="fxLayer"></div>
+<div class="toast" id="toast"></div>
+
+<script src="js/data.js"></script>
+<script src="js/audiomanifest.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/game.js"></script>
+<script>
+  // 注册 Service Worker：仅在 http/https 下生效（file:// 下浏览器不支持，双击运行不受影响）
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function (err) {
+        console.warn('SW 注册失败（可忽略，不影响游戏）:', err);
+      });
+    });
+  }
+</script>
+</body>
+</html>
