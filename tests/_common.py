@@ -235,6 +235,34 @@ def play_listen(h: Harness):
         p.wait_for_timeout(1600)   # 等自动进入下一题
 
 
+def play_picture(h: Harness):
+    """看图选字：没有可点的喇叭（读了就等于报答案），挨个选项点，
+    点到出现 .opt.right 为止。"""
+    p = h.page
+    for _ in range(60):
+        if _result_visible(h):
+            return
+        if handle_mini(h):
+            continue
+        opts = p.locator("#picGrid .opt")
+        if opts.count() == 0:
+            break
+        # 顺手点一下提示按钮，确保这条分支也跑通
+        try:
+            p.evaluate("document.getElementById('picHint')?.click()")
+        except Exception:
+            pass
+        for i in range(opts.count()):
+            try:
+                opts.nth(i).click(timeout=1200)
+            except Exception:
+                continue
+            p.wait_for_timeout(200)
+            if h.count(".opt.right") > 0:
+                break
+        p.wait_for_timeout(1700)   # 等自动进入下一题
+
+
 def play_find(h: Harness):
     """找字游戏：直接点 data-ok=1 的格子（每轮 3 个）。"""
     p = h.page
@@ -291,4 +319,5 @@ def play_match(h: Harness):
     p.wait_for_timeout(1200)
 
 
-PLAYERS = {"learn": play_learn, "listen": play_listen, "find": play_find, "match": play_match}
+PLAYERS = {"learn": play_learn, "listen": play_listen, "find": play_find,
+           "match": play_match, "picture": play_picture}

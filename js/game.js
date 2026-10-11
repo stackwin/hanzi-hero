@@ -315,6 +315,7 @@
     else if (mode === 'listen') startListen();
     else if (mode === 'find') startFind();
     else if (mode === 'match') startMatch();
+    else if (mode === 'picture') startPicture();
   }
 
   function setProgress(cur, total) {
@@ -328,6 +329,7 @@
     else if (session.mode === 'listen') setProgress(session.idx, session.total);
     else if (session.mode === 'find') setProgress(session.round, session.totalRounds);
     else if (session.mode === 'match') setProgress(session.pairs, session.totalPairs);
+    else if (session.mode === 'picture') setProgress(session.idx, session.total);
   }
 
   function bumpStar(n) {
@@ -776,6 +778,97 @@
     });
   }
 
+  /* ============ 玩法五：看图选字 ============ */
+  function startPicture() {
+    var lv = BANK[curLevel];
+    session.pool = distractPool(lv, null);
+    // 看图选字偏「回忆」，优先出已经见过的字来巩固；不够再用新字补足
+    var need = Math.min(8, lv.chars.length);
+    var known = lv.chars.filter(function (c) { return knows(c.c); });
+    var fresh = lv.chars.filter(function (c) { return !knows(c.c); });
+    var list = known.slice();
+    while (list.length < need && fresh.length) {
+      list.push(fresh.splice(Math.floor(Math.random() * fresh.length), 1)[0]);
+    }
+    session.list = pickWeighted(list, need);
+    session.total = session.list.length;
+    session.idx = 0;
+    updateProgress();
+    renderPicture();
+  }
+
+  function renderPicture() {
+    var ch = session.list[session.idx];
+    // 干扰项的配图不能和答案一样，否则图片本身有歧义
+    var others = pick(session.pool.filter(function (c) {
+      return c.c !== ch.c && c.e !== ch.e;
+    }), 3);
+    var opts = shuffle([ch].concat(others));
+    var body = $('gameBody');
+    body.innerHTML =
+      '<div class="picture-card" id="picCard"><span class="pic-emoji">' + ch.e + '</span></div>' +
+      '<div class="question-prompt">看图片，选出对应的字</div>' +
+      '<div class="opt-grid" id="picGrid">' +
+        opts.map(function (o) { return '<button class="opt" data-c="' + o.c + '">' + o.c + '</button>'; }).join('') +
+      '</div>' +
+      '<div class="pic-tools">' +
+        '<button class="btn small ghost" id="picHint">💡 提示词语</button>' +
+        '<span class="pic-hint" id="picHintBox"></span>' +
+      '</div>';
+
+    // 点图片只放大一下，不朗读 —— 一读就等于直接报答案了
+    var pic = $('picCard');
+    pic.onclick = function () {
+      sfx(A.click);
+      try { pic.animate([{ transform: 'scale(1)' }, { transform: 'scale(1.06)' }, { transform: 'scale(1)' }], 320); } catch (e) {}
+    };
+    // 提示：把组词里的目标字挖空（如 水□ / 苹□），让孩子顺着词语猜，不直接给答案
+    $('picHint').onclick = function () {
+      sfx(A.click);
+      var masked = ch.w.map(function (w) {
+        return w.split('').map(function (x) { return x === ch.c ? '□' : x; }).join('');
+      }).join('　');
+      $('picHintBox').textContent = '想一想：' + masked;
+    };
+
+    body.querySelectorAll('#picGrid .opt').forEach(function (btn) {
+      btn.onclick = function () {
+        if (btn.classList.contains('right')) return;
+        var c = btn.getAttribute('data-c');
+        if (c === ch.c) {
+          btn.classList.add('right');
+          sfx(A.correct);
+          session.right++;
+          markLearned(ch.c, 1);
+          bumpStar(1);
+          var r = btn.getBoundingClientRect();
+          burst(r.left + r.width / 2, r.top + r.height / 2);
+          bubble(pickOne(PRAISE));
+          speak([ch.c, ch.w[0]]);   // 答对后念字 → 念组词，加深印象
+          setTimeout(function () {
+            session.idx++;
+            session.quizCount = (session.quizCount || 0) + 1;
+            updateProgress();
+            if (session.idx >= session.list.length) { finishMode(); return; }
+            // 每 3 题穿插一个复习小游戏，避免孩子走神
+            if (session.quizCount % 3 === 0) {
+              runMiniGame(renderPicture);
+            } else {
+              renderPicture();
+            }
+          }, 1500);
+        } else {
+          btn.classList.add('wrong');
+          sfx(A.wrong);
+          session.wrong++;
+          markWrong(c);   // 记下被点错的字
+          bubble(pickOne(CHEER));
+          setTimeout(function () { btn.classList.remove('wrong'); }, 600);
+        }
+      };
+    });
+  }
+
   /* ============ 家长面板 ============ */
   function renderParent() {
     var totalKnown = 0, totalMastered = 0, totalChars = 0;
@@ -841,7 +934,7 @@
     }).join('\n');
     $('customStatus').textContent = state.custom && state.custom.length
       ? ('已加 ' + state.custom.length + ' 个字，会出现在首页「✏️ 我自己的字」这一关')
-      : '还没有自定义字（加上之后会成为首页的第 6 关）';
+      : '还没有自定义字（加上之后会成为首页的第 ' + (BANK.length + 1) + ' 关）';
 
     // 朗读声音
     renderVoiceCards();

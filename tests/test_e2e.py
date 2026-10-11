@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""端到端冒烟测试：5 关 × 4 玩法全部跑一遍 + 家长面板 + 复习小游戏截图。
+"""端到端冒烟测试：8 关 × 5 玩法全部跑一遍 + 家长面板 + 复习小游戏截图。
 
 用法：
     python tests/test_e2e.py              # 无头跑，只报结论
@@ -23,7 +23,7 @@ from _common import (Harness, MINI_SEEN, back_home, handle_mini, launch_browser,
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--headed", action="store_true", help="显示浏览器界面")
-    ap.add_argument("--levels", type=int, default=5, help="跑前 N 关（默认 5）")
+    ap.add_argument("--levels", type=int, default=8, help="跑前 N 关（默认 8）")
     ap.add_argument("--modes", nargs="*", default=list(PLAYERS), choices=list(PLAYERS))
     args = ap.parse_args()
 

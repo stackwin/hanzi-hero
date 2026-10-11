@@ -89,18 +89,8 @@ def main() -> int:
         elif hot_pct <= warm_pct:
             fails.append("错 5 次的字没比错 2 次的字出现得更频繁")
 
-        # 答对后错题数应自然衰减
-        print("\n— 验证答对会衰减错题权重 —")
-        quit_game(h)
-        start_mode(h, "find")
-        play_find(h)
-        st = json.loads(h.page.evaluate(f"localStorage.getItem('{STORAGE_KEY}')"))
-        wrong_now = (st.get("wrong") or {}).get(HOT, 0)
-        print(f"  「{HOT}」错次数 5 → {wrong_now}")
-        if wrong_now >= 5:
-            print("  （本轮没抽到该字，不算失败）")
-
-        # 家长面板的「容易错的字」
+        # 家长面板的「容易错的字」——必须在「答对衰减」之前检查：
+        # 玩一局之后 HOT 字可能已经被答对衰减掉、从易错榜单消失，那是正常行为
         h.page.evaluate("document.getElementById('btnHome').click()")
         h.page.wait_for_selector("#screenHome:not(.hidden)")
         h.page.click("#btnParent")
@@ -112,6 +102,19 @@ def main() -> int:
             fails.append("家长面板没有显示易错字")
         elif HOT not in "".join(weak_cells):
             fails.append(f"易错字里没有「{HOT}」")
+
+        # 答对后错题数应自然衰减
+        h.page.evaluate("document.getElementById('btnParentBack').click()")
+        h.page.wait_for_selector("#screenHome:not(.hidden)")
+        open_level(h, 0)
+        start_mode(h, "find")
+        play_find(h)
+        st = json.loads(h.page.evaluate(f"localStorage.getItem('{STORAGE_KEY}')"))
+        wrong_now = (st.get("wrong") or {}).get(HOT, 0)
+        print(f"\n— 验证答对会衰减错题权重 —")
+        print(f"  「{HOT}」错次数 5 → {wrong_now}")
+        if wrong_now >= 5:
+            print("  （本轮没抽到该字，不算失败）")
 
         browser.close()
 

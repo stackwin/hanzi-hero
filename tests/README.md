@@ -22,7 +22,7 @@ python tests/run_all.py --quick    # 快速回归（只跑 2 关）
 也可以单独跑：
 
 ```bash
-python tests/test_e2e.py                       # 主流程：5 关 × 4 玩法 + 家长面板
+python tests/test_e2e.py                       # 主流程：8 关 × 5 玩法 + 家长面板
 python tests/test_e2e.py --headed              # 显示浏览器界面，肉眼调试
 python tests/test_e2e.py --levels 2 --modes learn listen
 python tests/test_audio.py                     # 朗读走的是云音频还是系统机械音
@@ -37,7 +37,7 @@ python tests/list_voices.py                    # 诊断：列出系统可用中�
 
 | 用例 | 验的东西 | 失败意味着 |
 |---|---|---|
-| `test_e2e.py` | 5 关 × 4 玩法能跑通、结算页正常、家长面板数据齐全、**全程无 JS 错误** | 改坏了主流程 |
+| `test_e2e.py` | 8 关 × 5 玩法能跑通、结算页正常、家长面板数据齐全、**全程无 JS 错误** | 改坏了主流程 |
 | `test_audio.py` | 每次朗读都命中 `audio/` 下的预生成云音频，**系统 TTS 调用次数必须为 0**；切换声音后路径跟着变 | 云音频没接上，孩子会听到机械音 |
 | `test_weak_char.py` | 错得多的字出现率显著高于随机基准（约 8.3%）；答对后错题权重会衰减；家长面板能列出易错字 | 复习机制失效 |
 | `test_pwa.py` | `manifest.json`/`sw.js`/图标齐全、字段正确；CSS 触控属性到位、hover 已收进 `(hover:hover)`；用 `has_touch` 触屏仿真跑通学一学+听音选字 | PWA 或 iPad 触控适配没接上 |
