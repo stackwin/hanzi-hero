@@ -1,6 +1,8 @@
 # 测试产物
 tests/shots/
 .pytest_cache/
+# test_sw.py 的临时探针文件（正常跑完会自动删掉，防崩溃残留）
+__sw_probe__.txt
 
 # Python
 __pycache__/

@@ -47,6 +47,8 @@ def test_static_pwa_files():
     check("index.html 含 apple-touch-icon", 'rel="apple-touch-icon"' in html)
     check("index.html viewport 禁缩放", 'user-scalable=no' in html)
     check("index.html 注册 Service Worker", "serviceWorker" in html and "sw.js" in html)
+    check("SW 注册带 updateViaCache:none（避免 sw.js 被 HTTP 缓存挡住）",
+          "updateViaCache" in html and "'none'" in html)
 
     check("manifest.json 存在", (BASE / "manifest.json").exists())
     check("sw.js 存在", (BASE / "sw.js").exists())

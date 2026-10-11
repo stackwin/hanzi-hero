@@ -182,10 +182,26 @@
 <script>
   // 注册 Service Worker：仅在 http/https 下生效（file:// 下浏览器不支持，双击运行不受影响）
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function (err) {
-        console.warn('SW 注册失败（可忽略，不影响游戏）:', err);
+    // 页面本来就被旧 SW 控制着 → 一旦有新版本接管，自动刷新一次，省得家长手动清缓存。
+    // （首次安装时 controller 为 null，不刷新，避免白刷一下）
+    if (navigator.serviceWorker.controller) {
+      var reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (reloading) return;
+        reloading = true;
+        location.reload();
       });
+    }
+
+    window.addEventListener('load', function () {
+      // updateViaCache:'none' → 每次都回服务器核对 sw.js，不吃浏览器 HTTP 缓存
+      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+        .then(function (reg) {
+          reg.update().catch(function () {}); // 主动催一次更新检查
+        })
+        .catch(function (err) {
+          console.warn('SW 注册失败（可忽略，不影响游戏）:', err);
+        });
     });
   }
 </script>

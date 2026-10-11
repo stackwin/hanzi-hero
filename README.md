@@ -102,6 +102,32 @@
 - 所有 `:hover` 效果包进 `@media (hover: hover) and (pointer: fine)` → iPad 上点一下不会「粘」在悬停态
 - 大字按钮、大卡片布局 → 手指点得准
 
+### 更新游戏后，iPad 上怎么拿到新版
+
+装了 Service Worker 就会有缓存，这是「离线可玩」的代价。本项目已经处理好了，你只要记住一件事：
+
+> **每次改完 `index.html` / `css` / `js` 要发布时，先把 `sw.js` 里的 `VERSION` 加一（`v2` → `v3`）。**
+
+浏览器是靠「`sw.js` 这个文件的内容有没有变」来判断要不要更新 Service Worker 的。
+内容一字不改，它就认为 SW 没变、不重新安装，孩子会一直看到旧版本——**哪怕服务器上早就是新的**。
+（这个坑真实踩过一次：字库和玩法都更新了，iPad 刷新半天还是老界面。）
+
+更新策略（`sw.js`）：
+
+| 资源 | 策略 | 为什么 |
+|---|---|---|
+| `index.html` / `css` / `js` | 网络优先 + `no-store` | 保证一刷新就是最新版，永不被缓存钉住 |
+| `audio/*.mp3` | 缓存优先 | 文件名是文本的 md5、内容永不变；最省流量，离线也能听 |
+| 断网时 | 回落到缓存 | 没 wifi 也能玩 |
+
+配套的两处细节：注册时带 `updateViaCache: 'none'`（让 `sw.js` 自己也不被 HTTP 缓存挡住），
+以及新版本接管后自动 `location.reload()` 一次——家长不用手动清缓存。
+
+**万一 iPad 上还是旧版**（装的是很早期的版本时可能遇到）：
+1. 从多任务里上滑关掉图标，重新打开 → 刷新两次（第一次更新 SW，第二次拿到新页面）；
+2. 还不行就删掉主屏图标，在 Safari 里重新「添加到主屏幕」；
+3. 最彻底：Safari → 设置 → 高级 → 网站数据 → 删除该网站的数据。
+
 ## 配音
 
 游戏默认用**预生成的真人级云音频**（`audio/` 目录，992 条 mp3，10.2 MB），不走系统 TTS。
@@ -132,7 +158,7 @@ python gen_audio.py --force      # 全部重新生成
 ```
 ├── index.html              游戏入口（双击这个）
 ├── manifest.json           PWA 清单（名称/图标/启动方式）
-├── sw.js                   Service Worker（离线缓存 + 音频运行时缓存）
+├── sw.js                   Service Worker（离线缓存 + 音频运行时缓存；发版要改 VERSION）
 ├── icon-512.png            应用图标（512×512，含 maskable）
 ├── icon-192.png            应用图标（192×192）
 ├── apple-touch-icon.png    iOS 添加到主屏幕用的图标（180×180）
@@ -166,6 +192,7 @@ python tests/run_all.py --quick  # 快速回归
 | `test_audio.py` | 朗读是否命中云音频，**系统 TTS 调用次数必须为 0** |
 | `test_weak_char.py` | 错题加权是否生效、答对能否衰减、家长面板展示 |
 | `test_pwa.py` | PWA 文件/字段齐全 + CSS 触控属性 + `has_touch` 触屏仿真跑通 |
+| `test_sw.py` | SW 网络优先策略生效（改文件刷新即见新版）+ 缓存无旧版残留 + 断网仍可玩 |
 
 详见 [tests/README.md](tests/README.md)。
 

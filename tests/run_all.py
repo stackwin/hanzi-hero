@@ -19,6 +19,7 @@ SUITES = [
     ("音频链路", ["test_audio.py"]),
     ("错题优先机制", ["test_weak_char.py"]),
     ("PWA 与触控", ["test_pwa.py"]),
+    ("SW 更新策略", ["test_sw.py"]),
 ]
 
 
