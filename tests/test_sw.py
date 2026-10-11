@@ -47,11 +47,114 @@ class _Quiet(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
 
-def start_server():
-    handler = functools.partial(_Quiet, directory=str(BASE))
+def start_server(root=None):
+    handler = functools.partial(_Quiet, directory=str(root or BASE))
     httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), handler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     return httpd
+
+
+# 复刻「出问题的那版」SW：cache-first，且版本号写死不动。
+# 用来验证：装着旧 SW 的浏览器，能不能自动升到新版（iPad 上就是这个场景）。
+OLD_SW_BUGGY = '''
+const CACHE = "xiongshizi-v1";
+const CORE = ["./", "./index.html"];
+self.addEventListener("install", (e) => {
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting()));
+});
+self.addEventListener("activate", (e) => {
+  e.waitUntil(caches.keys()
+    .then((ks) => Promise.all(ks.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    .then(() => self.clients.claim()));
+});
+self.addEventListener("fetch", (e) => {
+  if (e.request.method !== "GET") return;
+  e.respondWith(caches.match(e.request).then((hit) => hit || fetch(e.request)));
+});
+'''
+
+
+def strip_old_sw_test(fails: list[str]) -> None:
+    """模拟真实场景：浏览器里已经装着旧的 cache-first SW，然后服务器发布新版。
+
+    必须能自动升级成功 —— 这正是 iPad 上「刷新还是老程序」的现场。
+    """
+    import shutil
+    import tempfile
+
+    print("\n— 旧版本升级仿真（iPad 现场复现）—")
+    tmp = pathlib.Path(tempfile.mkdtemp(prefix="sw_upgrade_"))
+
+    def page_html(mark: str) -> str:
+        """极简页面：只有内容 + SW 注册脚本（真实页面也是这么注册的）。"""
+        return (
+            "<!doctype html><html><body><h1 id=mark>" + mark + "</h1>"
+            "<script>if ('serviceWorker' in navigator) {"
+            " navigator.serviceWorker.register('sw.js'); }</script>"
+            "</body></html>"
+        )
+
+    (tmp / "index.html").write_text(page_html("OLDPAGE"), encoding="utf-8")
+    (tmp / "sw.js").write_text(OLD_SW_BUGGY, encoding="utf-8")
+
+    httpd = start_server(tmp)
+    url = f"http://127.0.0.1:{httpd.server_address[1]}/"
+
+    try:
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as pw:
+            browser = launch_browser(pw, headless=True)
+            ctx = browser.new_context(service_workers="allow")
+            page = ctx.new_page()
+
+            # --- 阶段 A：装上旧 SW，页面被 cache-first 固化 ---
+            page.goto(url)
+            page.wait_for_function(
+                "() => navigator.serviceWorker && navigator.serviceWorker.controller",
+                timeout=20000)
+            mark_a = page.inner_text("#mark")
+            keys_a = page.evaluate("() => caches.keys()")
+            print(f"  阶段A 旧 SW 生效：页面={mark_a} 缓存={keys_a}")
+            if mark_a != "OLDPAGE":
+                fails.append(f"升级仿真阶段A异常：页面是 {mark_a}")
+
+            # 旧 SW 下即使服务器换了内容，页面也读不到新的（确认旧策略确实有病）
+            (tmp / "index.html").write_text(page_html("NEWPAGE"), encoding="utf-8")
+            page.reload()
+            page.wait_for_timeout(1200)
+            stale = page.inner_text("#mark")
+            print(f"  旧 SW 存在时服务器已换新版 → 页面读到 {stale}（预期仍是 OLDPAGE，符合病因）")
+            if stale != "OLDPAGE":
+                fails.append("升级仿真：旧 cache-first SW 竟然读到了新内容，仿真不成立")
+
+            # --- 阶段 B：服务器发布新版 SW，浏览器刷新后应自动升级 ---
+            (tmp / "sw.js").write_text(
+                (BASE / "sw.js").read_text(encoding="utf-8"), encoding="utf-8")
+            page.reload()   # 第 1 次刷新：浏览器发现 sw.js 变了 → 装新 SW
+            installed = False
+            for _ in range(50):
+                if page.evaluate(
+                        "() => caches.keys().then(ks => ks.includes('xiongshizi-v2'))"):
+                    installed = True
+                    break
+                page.wait_for_timeout(500)
+            if not installed:
+                fails.append("升级仿真：新 SW 迟迟没装成功（v2 缓存未出现）")
+            page.reload()   # 第 2 次刷新：新 SW 已接管，拿到新页面
+            page.wait_for_timeout(800)
+            mark_b = page.inner_text("#mark")
+            keys_b = page.evaluate("() => caches.keys()")
+            print(f"  阶段B 发布新版 → 刷新两次后：页面={mark_b} 缓存={keys_b}")
+
+            if mark_b != "NEWPAGE":
+                fails.append(f"升级仿真失败：刷新后页面仍是 {mark_b}，旧 SW 没被替换")
+            else:
+                print("  ✓ 旧 SW 自动升级成功，刷新两次即拿到新版（缓存已换成 v2）")
+
+            browser.close()
+    finally:
+        httpd.shutdown()
+        shutil.rmtree(tmp, ignore_errors=True)
 
 
 def read_sw_version() -> str:
@@ -187,6 +290,9 @@ def main() -> int:
         except Exception:
             pass
 
+    # 旧版本升级仿真（单独一段，避免嵌套 sync_playwright）
+    strip_old_sw_test(fails)
+
     print("\n" + "=" * 56)
     if fails:
         print("结果：不通过")
@@ -196,6 +302,7 @@ def main() -> int:
     print("结果：全部通过 ✓")
     print("  · 首屏即最新版 · SW 正常接管 · 缓存无旧版残留")
     print("  · 改文件刷新即可见 · 断网仍可玩 · 0 JS 错误")
+    print("  · 旧 SW 自动升级成功（刷新两次即拿到新版）")
     return 0
 
 
